@@ -3,8 +3,8 @@
   "id": "mineshell",
   "version": "${version}",
 
-  "name": "Example Mod",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "MineShell",
+  "description": "Execute shell command in Minecraft!",
   "authors": [
     "Myitian"
   ],
@@ -18,6 +18,9 @@
       "net.myitian.mineshell.MineShellMod"
     ]
   },
+  "mixins": [
+    "mineshell.mixins.json"
+  ],
 
   "depends": {
     "fabricloader": ">=0.14.11",
