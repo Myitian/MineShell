@@ -24,20 +24,20 @@ public class ExecRunner extends Thread {
 
     public void run() {
         try {
-            ctx.getSource().sendMessage(Text.literal("[MSH][执行]：" + arg));
+            ctx.getSource().sendMessage(Text.translatable("mineshell.exec.start", arg));
 
             proc = Runtime.getRuntime().exec(arg);
 
             bw = new BufferedWriter(new OutputStreamWriter(proc.getOutputStream()));
-            ctx.getSource().sendMessage(Text.literal("[MSH][PID]：" + proc.pid()));
+            ctx.getSource().sendMessage(Text.translatable("mineshell.exec.pid", proc.pid()));
 
             new Thread((errorGobbler =
-                    new StreamGobbler(proc.getErrorStream(), ctx, "[MSH][错误]：", charset))).start();
+                    new StreamGobbler(proc.getErrorStream(), ctx, "mineshell.exec.stderr", charset))).start();
             new Thread((outputGobbler =
-                    new StreamGobbler(proc.getInputStream(), ctx, "[MSH][输出]：", charset))).start();
+                    new StreamGobbler(proc.getInputStream(), ctx, "mineshell.exec.stdout", charset))).start();
 
-            int exitVal = proc.waitFor();
-            ctx.getSource().sendMessage(Text.literal("[MSH][返回值]：" + exitVal));
+            int exitCode = proc.waitFor();
+            ctx.getSource().sendMessage(Text.translatable("mineshell.exec.exitcode", exitCode));
         } catch (Throwable t) {
             t.printStackTrace();
         }

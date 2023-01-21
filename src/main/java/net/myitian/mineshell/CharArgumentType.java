@@ -31,7 +31,7 @@ public class CharArgumentType implements ArgumentType<Character> {
                 reader.skip();
                 if (reader.canRead()) {
                     switch (reader.peek()) {
-                        case '\'' -> throw new SimpleCommandExceptionType(Text.literal("Empty character literal")).createWithContext(reader);
+                        case '\'' -> throw new SimpleCommandExceptionType(Text.translatable("argument.char.empty")).createWithContext(reader);
                         case '\\' -> {
                             esc = true;
                             reader.skip();
@@ -40,7 +40,7 @@ public class CharArgumentType implements ArgumentType<Character> {
                     }
                 } else {
                     throw new SimpleCommandExceptionType(
-                            Text.literal("Unclosed character literal")).createWithContext(reader);
+                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
                 }
                 if (reader.canRead()) {
                     if (esc) {
@@ -66,17 +66,17 @@ public class CharArgumentType implements ArgumentType<Character> {
                                 break;
                             default:
                                 throw new SimpleCommandExceptionType(
-                                        Text.literal("Illegal escape character in character literal")).createWithContext(reader);
+                                        Text.translatable("argument.char.illegal_escape_character")).createWithContext(reader);
                         }
                     } else if (reader.read() == '\'') {
                         return c;
                     } else {
                         throw new SimpleCommandExceptionType(
-                                Text.literal("Too many characters in character literal")).createWithContext(reader);
+                                Text.translatable("argument.char.too_many")).createWithContext(reader);
                     }
                 } else {
                     throw new SimpleCommandExceptionType(
-                            Text.literal("Unclosed character literal")).createWithContext(reader);
+                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
                 }
                 if (reader.canRead(4)) {
                     StringBuilder sb = new StringBuilder(4);
@@ -85,23 +85,23 @@ public class CharArgumentType implements ArgumentType<Character> {
                             sb.append(reader.read());
                         } else {
                             throw new SimpleCommandExceptionType(
-                                    Text.literal("Illegal escape character in character literal")).createWithContext(reader);
+                                    Text.translatable("argument.char.illegal_escape_character")).createWithContext(reader);
                         }
                     }
                     c = (char) Integer.parseInt(sb.toString(), 16);
                 } else {
                     throw new SimpleCommandExceptionType(
-                            Text.literal("Unclosed character literal")).createWithContext(reader);
+                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
                 }
                 if (reader.canRead()) {
                     if (reader.read() == '\'') {
                         return c;
                     }
                     throw new SimpleCommandExceptionType(
-                            Text.literal("Too many characters in character literal")).createWithContext(reader);
+                            Text.translatable("argument.char.too_many")).createWithContext(reader);
                 } else {
                     throw new SimpleCommandExceptionType(
-                            Text.literal("Unclosed character literal")).createWithContext(reader);
+                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
                 }
             } else {
                 return (char) reader.readInt();

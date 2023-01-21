@@ -46,7 +46,7 @@ class StreamGobbler implements Runnable {
                         line.append((char) c);
                         continue;
                 }
-                ctx.getSource().sendMessage(Text.literal(prefix + line));
+                ctx.getSource().sendMessage(Text.translatable(prefix, line.toString()));
                 line.delete(0, line.length());
             }
 

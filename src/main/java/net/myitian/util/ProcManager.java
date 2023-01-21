@@ -1,11 +1,6 @@
 package net.myitian.util;
 
-import com.mojang.brigadier.Message;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandExceptionType;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import net.minecraft.client.gui.screen.ChatInputSuggestor;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
@@ -21,7 +16,7 @@ public class ProcManager {
             Process proc = runner.getProc();
             if (proc != null) {
                 if (proc.isAlive()) {
-                    ctx.getSource().sendMessage(Text.literal("已有进程正在运行！"));
+                    ctx.getSource().sendMessage(Text.translatable("procmanager.error.process_already_running"));
                     return;
                 }
             }
@@ -35,11 +30,11 @@ public class ProcManager {
             Process proc = runner.getProc();
             if (proc != null && proc.isAlive()) {
                 kill(proc.toHandle());
-                ctx.getSource().sendMessage(Text.literal("[MSH][结束进程]"));
+                ctx.getSource().sendMessage(Text.translatable("mineshell.kill_process"));
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("无正在运行的进程！"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
     public static void kill(ProcessHandle handle) {
@@ -47,10 +42,8 @@ public class ProcManager {
         handle.destroy();
     }
 
-    public static void help(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        //ServerCommandSource scs = ctx.getSource();
-        throw new SimpleCommandExceptionType(Text.literal("AAA"+ctx.isForked())).create();
-        //scs.sendMessage(Text.literal("AAA"+ctx.isForked()));
+    public static void help(CommandContext<ServerCommandSource> ctx) {
+        // TODO
     }
 
     public static void info(CommandContext<ServerCommandSource> ctx) {
@@ -58,24 +51,24 @@ public class ProcManager {
             Process proc = runner.getProc();
             if (proc != null && proc.isAlive()) {
                 ProcessHandle.Info info = proc.info();
-                ctx.getSource().sendMessage(Text.literal("[PID]：" + proc.pid()));
-                ctx.getSource().sendMessage(Text.literal("[命令]：" + info.command()));
-                ctx.getSource().sendMessage(Text.literal("[参数]：" + info.arguments().toString()));
+                ctx.getSource().sendMessage(Text.translatable("mineshell.info.pid", proc.pid()));
+                ctx.getSource().sendMessage(Text.translatable("mineshell.info.command", info.command()));
+                ctx.getSource().sendMessage(Text.translatable("mineshell.info.arguments", info.arguments()));
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("无正在运行的进程！"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
     public static void isalive(CommandContext<ServerCommandSource> ctx) {
         if (runner != null) {
             Process proc = runner.getProc();
             if (proc != null && proc.isAlive()) {
-                ctx.getSource().sendMessage(Text.literal("Alive"));
+                ctx.getSource().sendMessage(Text.translatable("procmanager.isalive.alive"));
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("Unalive"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.isalive.unlive"));
     }
 
     public static void inputChar(CommandContext<ServerCommandSource> ctx, char c) throws IOException {
@@ -87,7 +80,7 @@ public class ProcManager {
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("无正在运行的进程！"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
     public static void inputString(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
@@ -99,7 +92,7 @@ public class ProcManager {
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("无正在运行的进程！"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
     public static void inputLine(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
@@ -112,7 +105,7 @@ public class ProcManager {
                 return;
             }
         }
-        ctx.getSource().sendMessage(Text.literal("无正在运行的进程！"));
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
     public static ExecRunner getRunner() {

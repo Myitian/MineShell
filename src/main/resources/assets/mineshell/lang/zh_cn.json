@@ -1,0 +1,19 @@
+{
+  "argument.char.empty": "空的字符字面量",
+  "argument.char.unclosed": "未封闭的字符字面量",
+  "argument.char.illegal_escape": "字符字面量的转义字符不合法",
+  "argument.char.too_many": "字符字面量中有太多的字符",
+  "procmanager.isalive.alive": "Alive",
+  "procmanager.isalive.unlive": "Unlive",
+  "procmanager.error.process_already_running": "已有进程正在运行！",
+  "procmanager.error.no_running_process": "无正在运行的进程！",
+  "mineshell.kill_process": "[MSH][结束进程]",
+  "mineshell.info.pid": "[PID]: %s",
+  "mineshell.info.command": "[命令]: %s",
+  "mineshell.info.arguments": "[参数]: %s",
+  "mineshell.exec.start": "[MSH][执行]: %s",
+  "mineshell.exec.pid": "[MSH][PID]: %s",
+  "mineshell.exec.stderr": "[MSH][ERR]: %s",
+  "mineshell.exec.stdout": "[MSH][OUT]: %s",
+  "mineshell.exec.exitcode": "[MSH][返回值]: %s"
+}

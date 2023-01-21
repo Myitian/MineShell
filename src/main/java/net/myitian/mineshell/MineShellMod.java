@@ -24,8 +24,6 @@ public class MineShellMod implements ModInitializer {
     public static final String MODID = "mineshell";
     public static final String CMD = "shell";
     public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
-    public static final SuggestionProvider<ServerCommandSource> suggestionProvider =
-            SuggestionProviders.register(new Identifier(MODID), AttributeSuggestionProvider::getSuggestions);
 
     @Override
     public void onInitialize() {
@@ -83,7 +81,7 @@ public class MineShellMod implements ModInitializer {
                 .then(literal("input")
                         .then(literal("char")
                                 .then(argument("char", CharArgumentType.character())
-                                        .suggests(suggestionProvider)
+                                        //.suggests(suggestionProvider)
                                         .executes(ctx -> {
                                             try {
                                                 ProcManager.inputChar(ctx, CharArgumentType.getChar(ctx, "char"));
@@ -96,7 +94,7 @@ public class MineShellMod implements ModInitializer {
                 .then(literal("input")
                         .then(literal("string")
                                 .then(argument("string", StringArgumentType.greedyString())
-                                        .suggests(suggestionProvider)
+                                        //.suggests(suggestionProvider)
                                         .executes(ctx -> {
                                             try {
                                                 ProcManager.inputString(ctx, StringArgumentType.getString(ctx, "string"));
@@ -109,7 +107,7 @@ public class MineShellMod implements ModInitializer {
                 .then(literal("input")
                         .then(literal("line")
                                 .then(argument("line", StringArgumentType.greedyString())
-                                        .suggests(suggestionProvider)
+                                        //.suggests(suggestionProvider)
                                         .executes(ctx -> {
                                             try {
                                                 ProcManager.inputLine(ctx, StringArgumentType.getString(ctx, "line"));

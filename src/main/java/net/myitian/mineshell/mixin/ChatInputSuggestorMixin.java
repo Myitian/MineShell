@@ -31,11 +31,13 @@ public class ChatInputSuggestorMixin {
     @Inject(method = "showCommandSuggestions()V", at = @At("HEAD"))
     public void onShowCommandSuggestions(CallbackInfo ci) {
         List<ParsedCommandNode<CommandSource>> nodes = parse.getContext().getNodes();
-        String n0 = nodes.get(0).getNode().getName();
-        String n1 = nodes.get(1).getNode().getName();
-        String msg = ProcManager.getRunner().getUnsentMessage();
-        if (nodes.size() > 2 && MineShellMod.CMD.equals(n0) && ("input".equals(n1)) && msg != null) {
-            messages.add(Text.literal(msg).asOrderedText());
+        if (nodes.size() > 2) {
+            String n0 = nodes.get(0).getNode().getName();
+            String n1 = nodes.get(1).getNode().getName();
+            String msg = ProcManager.getRunner().getUnsentMessage();
+            if (MineShellMod.CMD.equals(n0) && ("input".equals(n1)) && msg != null) {
+                messages.add(Text.literal(msg).asOrderedText());
+            }
         }
     }
 }

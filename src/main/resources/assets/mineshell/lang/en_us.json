@@ -1,0 +1,19 @@
+{
+  "argument.char.empty": "Empty character literal",
+  "argument.char.unclosed": "Unclosed character literal",
+  "argument.char.illegal_escape": "Illegal escape character in character literal",
+  "argument.char.too_many": "Too many characters in character literal",
+  "procmanager.isalive.alive": "Alive",
+  "procmanager.isalive.unlive": "Unlive",
+  "procmanager.error.process_already_running": "There is already a process running!",
+  "procmanager.error.no_running_process": "No running process!",
+  "mineshell.kill_process": "[MSH][Ending the process]",
+  "mineshell.info.pid": "[PID]: %s",
+  "mineshell.info.command": "[Command]: %s",
+  "mineshell.info.arguments": "[Arguments]: %s",
+  "mineshell.exec.start": "[MSH][Executes]: %s",
+  "mineshell.exec.pid": "[MSH][PID]: %s",
+  "mineshell.exec.stderr": "[MSH][ERR]: %s",
+  "mineshell.exec.stdout": "[MSH][OUT]: %s",
+  "mineshell.exec.exitcode": "[MSH][Exit Code]: %s"
+}
