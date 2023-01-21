@@ -1,13 +1,10 @@
 package net.myitian.mineshell;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
-import net.minecraft.command.suggestion.SuggestionProviders;
-import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.myitian.util.ExecRunner;
@@ -24,6 +21,9 @@ public class MineShellMod implements ModInitializer {
     public static final String MODID = "mineshell";
     public static final String CMD = "shell";
     public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
+    public static final String CMDPREFIX_WINDOWS = "cmd /C ";
+    public static final String CMDPREFIX_NONWINDOWS = "/bin/sh -c ";
+    public static final String CMDPREFIX = ExecRunner.isWindows ? CMDPREFIX_WINDOWS : CMDPREFIX_NONWINDOWS;
 
     @Override
     public void onInitialize() {
@@ -36,7 +36,7 @@ public class MineShellMod implements ModInitializer {
                                 .executes(ctx -> {
                                     try {
                                         String cmd = StringArgumentType.getString(ctx, "cmd");
-                                        ProcManager.execAsync(ctx, (ExecRunner.isWindows ? "cmd /C " : "/bin/sh -c ") + cmd);
+                                        ProcManager.execAsync(ctx, CMDPREFIX + cmd);
                                     } catch (Throwable e) {
                                         e.printStackTrace();
                                         ctx.getSource().sendError(Text.literal(e.getMessage()));
@@ -55,12 +55,6 @@ public class MineShellMod implements ModInitializer {
                                     }
                                     return 1;
                                 })))
-                .then(literal("runfile")
-                        .then(argument("file", StringArgumentType.greedyString())
-                                .executes(ctx -> {
-                                    // do sth
-                                    return 1;
-                                })))
                 .then(literal("kill").executes(ctx -> {
                     ProcManager.kill(ctx);
                     return 1;
@@ -71,7 +65,7 @@ public class MineShellMod implements ModInitializer {
                 }))
                 .then(literal("help")
                         .executes(ctx -> {
-
+                            // TODO
                             return 1;
                         }))
                 .then(literal("isalive").executes(ctx -> {
@@ -90,8 +84,7 @@ public class MineShellMod implements ModInitializer {
                                                 ctx.getSource().sendError(Text.literal(e.getMessage()));
                                             }
                                             return 1;
-                                        }))))
-                .then(literal("input")
+                                        })))
                         .then(literal("string")
                                 .then(argument("string", StringArgumentType.greedyString())
                                         //.suggests(suggestionProvider)
@@ -103,8 +96,7 @@ public class MineShellMod implements ModInitializer {
                                                 ctx.getSource().sendError(Text.literal(e.getMessage()));
                                             }
                                             return 1;
-                                        }))))
-                .then(literal("input")
+                                        })))
                         .then(literal("line")
                                 .then(argument("line", StringArgumentType.greedyString())
                                         //.suggests(suggestionProvider)
@@ -116,6 +108,16 @@ public class MineShellMod implements ModInitializer {
                                                 ctx.getSource().sendError(Text.literal(e.getMessage()));
                                             }
                                             return 1;
-                                        }))))));
+                                        })))
+                        .then(literal("newline")
+                                .executes(ctx -> {
+                                    try {
+                                        ProcManager.inputNewLine(ctx);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                        ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                    }
+                                    return 1;
+                                })))));
     }
 }

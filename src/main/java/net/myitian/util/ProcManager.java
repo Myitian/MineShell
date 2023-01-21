@@ -108,6 +108,18 @@ public class ProcManager {
         ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
     }
 
+    public static void inputNewLine(CommandContext<ServerCommandSource> ctx) throws IOException {
+        if (runner != null) {
+            BufferedWriter bw = runner.getBw();
+            if (bw != null) {
+                bw.newLine();
+                bw.flush();
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatable("procmanager.error.no_running_process"));
+    }
+
     public static ExecRunner getRunner() {
         return runner;
     }
