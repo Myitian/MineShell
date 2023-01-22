@@ -8,8 +8,11 @@
   "authors": [
     "Myitian"
   ],
+  "contact": {
+    "sources": "https://github.com/Myitian/MineShell"
+  },
 
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/mineshell/icon.png",
 
   "environment": "*",
