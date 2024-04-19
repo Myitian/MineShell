@@ -8,7 +8,8 @@
     "Myitian"
   ],
   "contact": {
-    "sources": "https://github.com/Myitian/MineShell"
+    "sources": "https://github.com/Myitian/MineShell",
+    "homepage": "https://www.mcmod.cn/class/8929.html"
   },
   "license": "MIT",
   "icon": "assets/mineshell/icon.png",
