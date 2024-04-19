@@ -21,6 +21,8 @@ import java.io.IOException;
 import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
+import static com.mojang.brigadier.arguments.StringArgumentType.getString;
+import static com.mojang.brigadier.arguments.StringArgumentType.word;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 import static net.myitian.mineshell.argument.ExtendBoolArgumentType.exBool;
@@ -163,6 +165,18 @@ public class MineShellMod implements ModInitializer {
                                 .then(argument("value", integer(0))
                                         .executes(ctx -> {
                                             ProcessManager.CONFIG.tabWidth = getInteger(ctx, "value");
+                                            return SINGLE_SUCCESS;
+                                        })))
+                        .then(literal("input-charset")
+                                .then(argument("value", word())
+                                        .executes(ctx -> {
+                                            ProcessManager.CONFIG.inputCharset = getString(ctx, "value");
+                                            return SINGLE_SUCCESS;
+                                        })))
+                        .then(literal("output-charset")
+                                .then(argument("value", word())
+                                        .executes(ctx -> {
+                                            ProcessManager.CONFIG.outputCharset = getString(ctx, "value");
                                             return SINGLE_SUCCESS;
                                         })))
                         .then(literal("ansi-escape")

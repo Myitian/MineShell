@@ -7,6 +7,7 @@ import net.myitian.mineshell.config.Config;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Writer;
 
 public class ProcessManager {
     public static final Config CONFIG = new Config().load().save();
@@ -90,10 +91,10 @@ public class ProcessManager {
 
     public static void inputChar(CommandContext<ServerCommandSource> ctx, char c) throws IOException {
         if (runner != null) {
-            BufferedWriter bw = runner.getBw();
-            if (bw != null) {
-                bw.write(c);
-                bw.flush();
+            Writer writer = runner.getWriter();
+            if (writer != null) {
+                writer.write(c);
+                writer.flush();
                 return;
             }
         }
@@ -102,10 +103,10 @@ public class ProcessManager {
 
     public static void inputString(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
         if (runner != null) {
-            BufferedWriter bw = runner.getBw();
-            if (bw != null) {
-                bw.write(str);
-                bw.flush();
+            Writer writer = runner.getWriter();
+            if (writer != null) {
+                writer.write(str);
+                writer.flush();
                 return;
             }
         }
@@ -114,11 +115,11 @@ public class ProcessManager {
 
     public static void inputLine(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
         if (runner != null) {
-            BufferedWriter bw = runner.getBw();
-            if (bw != null) {
-                bw.write(str);
-                bw.write(CONFIG.newLine);
-                bw.flush();
+            Writer writer = runner.getWriter();
+            if (writer != null) {
+                writer.write(str);
+                writer.write(CONFIG.newLine);
+                writer.flush();
                 return;
             }
         }
@@ -127,10 +128,10 @@ public class ProcessManager {
 
     public static void inputNewLine(CommandContext<ServerCommandSource> ctx) throws IOException {
         if (runner != null) {
-            BufferedWriter bw = runner.getBw();
-            if (bw != null) {
-                bw.write(CONFIG.newLine);
-                bw.flush();
+            Writer writer = runner.getWriter();
+            if (writer != null) {
+                writer.write(CONFIG.newLine);
+                writer.flush();
                 return;
             }
         }

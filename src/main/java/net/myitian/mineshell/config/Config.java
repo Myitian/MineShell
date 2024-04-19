@@ -31,7 +31,8 @@ public class Config {
     public boolean isCSISGREnabled = true;
     public boolean hideUnsupportedANSIEscapeSequence = true;
     public String newLine = "\n";
-    public String charset = "UTF-8";
+    public String inputCharset = "UTF-8";
+    public String outputCharset = "UTF-8";
     public char tabChar = ' ';
     public int tabWidth = 4;
 

@@ -7,6 +7,7 @@ import net.myitian.mineshell.config.Config;
 
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 
 public class ExecRunner extends Thread {
     private final CommandContext<ServerCommandSource> ctx;
@@ -14,7 +15,7 @@ public class ExecRunner extends Thread {
     private final Config config;
     StreamGobbler outputGobbler;
     StreamGobbler errorGobbler;
-    private BufferedWriter bw;
+    private Writer writer;
     private Process process;
 
     ExecRunner(CommandContext<ServerCommandSource> ctx, String arg, Config config) {
@@ -28,14 +29,13 @@ public class ExecRunner extends Thread {
             ctx.getSource().sendMessage(Text.translatable("mineshell.exec.start", arg));
 
             process = Runtime.getRuntime().exec(arg);
-
-            bw = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+            writer = new OutputStreamWriter(process.getOutputStream(), config.inputCharset);
             ctx.getSource().sendMessage(Text.translatable("mineshell.exec.pid", process.pid()));
 
             new Thread((outputGobbler =
-                    new StreamGobbler(process.getInputStream(), ctx, config.charset, config))).start();
+                    new StreamGobbler(process.getInputStream(), ctx, config.outputCharset, config))).start();
             new Thread((errorGobbler =
-                    new StreamGobbler(process.getErrorStream(), ctx, config.charset, config))).start();
+                    new StreamGobbler(process.getErrorStream(), ctx, config.outputCharset, config))).start();
 
             int exitCode = process.waitFor();
             ctx.getSource().sendMessage(Text.translatable("mineshell.exec.exitcode", exitCode));
@@ -48,8 +48,8 @@ public class ExecRunner extends Thread {
         return process;
     }
 
-    public BufferedWriter getBw() {
-        return bw;
+    public Writer getWriter() {
+        return writer;
     }
 
     public Text[] getUnsentMessages() {
