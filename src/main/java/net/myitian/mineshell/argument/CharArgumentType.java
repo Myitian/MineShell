@@ -1,4 +1,4 @@
-package net.myitian.mineshell;
+package net.myitian.mineshell.argument;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
@@ -11,6 +11,10 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public class CharArgumentType implements ArgumentType<Character> {
+    private static final SimpleCommandExceptionType EMPTY_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.empty"));
+    private static final SimpleCommandExceptionType UNCLOSED_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.unclosed"));
+    private static final SimpleCommandExceptionType ILLEGAL_ESCAPE_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.illegal_escape"));
+    private static final SimpleCommandExceptionType TOO_MANY_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.too_many"));
     private static final Collection<String> EXAMPLES = Arrays.asList("'\\''", "'\"'", "\"a\"");
 
     public static CharArgumentType character() {
@@ -31,7 +35,7 @@ public class CharArgumentType implements ArgumentType<Character> {
                 reader.skip();
                 if (reader.canRead()) {
                     switch (reader.peek()) {
-                        case '\'' -> throw new SimpleCommandExceptionType(Text.translatable("argument.char.empty")).createWithContext(reader);
+                        case '\'' -> throw EMPTY_CHAR_EXCEPTION.createWithContext(reader);
                         case '\\' -> {
                             esc = true;
                             reader.skip();
@@ -39,8 +43,7 @@ public class CharArgumentType implements ArgumentType<Character> {
                         default -> c = reader.read();
                     }
                 } else {
-                    throw new SimpleCommandExceptionType(
-                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
+                    throw UNCLOSED_CHAR_EXCEPTION.createWithContext(reader);
                 }
                 if (reader.canRead()) {
                     if (esc) {
@@ -56,19 +59,16 @@ public class CharArgumentType implements ArgumentType<Character> {
                             case '\'' -> c = '\'';
                             case '\"' -> c = '"';
                             case 'u' -> unicode = true;
-                            default -> throw new SimpleCommandExceptionType(
-                                    Text.translatable("argument.char.illegal_escape")).createWithContext(reader);
+                            default -> throw ILLEGAL_ESCAPE_CHAR_EXCEPTION.createWithContext(reader);
                         }
                     } else if (reader.read() == '\'') {
                         return c;
                     } else {
                         reader.setCursor(reader.getCursor() - 1);
-                        throw new SimpleCommandExceptionType(
-                                Text.translatable("argument.char.too_many")).createWithContext(reader);
+                        throw TOO_MANY_CHAR_EXCEPTION.createWithContext(reader);
                     }
                 } else {
-                    throw new SimpleCommandExceptionType(
-                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
+                    throw UNCLOSED_CHAR_EXCEPTION.createWithContext(reader);
                 }
                 if (unicode) {
                     if (reader.canRead(4)) {
@@ -77,14 +77,12 @@ public class CharArgumentType implements ArgumentType<Character> {
                             if (isHex(reader.peek())) {
                                 sb.append(reader.read());
                             } else {
-                                throw new SimpleCommandExceptionType(
-                                        Text.translatable("argument.char.illegal_escape")).createWithContext(reader);
+                                throw ILLEGAL_ESCAPE_CHAR_EXCEPTION.createWithContext(reader);
                             }
                         }
                         c = (char) Integer.parseInt(sb.toString(), 16);
                     } else {
-                        throw new SimpleCommandExceptionType(
-                                Text.translatable("argument.char.unclosed")).createWithContext(reader);
+                        throw UNCLOSED_CHAR_EXCEPTION.createWithContext(reader);
                     }
                 }
                 if (reader.canRead()) {
@@ -92,11 +90,9 @@ public class CharArgumentType implements ArgumentType<Character> {
                         return c;
                     }
                     reader.setCursor(reader.getCursor() - 1);
-                    throw new SimpleCommandExceptionType(
-                            Text.translatable("argument.char.too_many")).createWithContext(reader);
+                    throw TOO_MANY_CHAR_EXCEPTION.createWithContext(reader);
                 } else {
-                    throw new SimpleCommandExceptionType(
-                            Text.translatable("argument.char.unclosed")).createWithContext(reader);
+                    throw UNCLOSED_CHAR_EXCEPTION.createWithContext(reader);
                 }
             } else {
                 return (char) reader.readInt();

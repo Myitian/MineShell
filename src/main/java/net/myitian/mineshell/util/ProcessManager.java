@@ -1,0 +1,143 @@
+package net.myitian.mineshell.util;
+
+import com.mojang.brigadier.context.CommandContext;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.text.Text;
+import net.myitian.mineshell.config.Config;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+
+public class ProcessManager {
+    public static final Config CONFIG = new Config().load().save();
+    private static ExecRunner runner;
+
+    public static void execAsync(CommandContext<ServerCommandSource> ctx, String arg) {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null) {
+                if (process.isAlive()) {
+                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.process_already_running", "There is already a process running!"));
+                    return;
+                }
+            }
+        }
+        runner = new ExecRunner(ctx, arg, CONFIG);
+        runner.start();
+    }
+
+    public static void kill(CommandContext<ServerCommandSource> ctx) {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null && process.isAlive()) {
+                kill(process.toHandle());
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.kill_process", "[MSH:Ending the process]"));
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static void kill(ProcessHandle handle) {
+        handle.descendants().forEach(ProcessManager::kill);
+        handle.destroy();
+    }
+
+    public static void info(CommandContext<ServerCommandSource> ctx) {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null && process.isAlive()) {
+                ProcessHandle.Info info = process.info();
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.command", "Command: %s", info.command().orElse("")));
+                int count = info.arguments().map(strings -> strings.length).orElse(0);
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.arguments", "Arguments (%s):", count));
+                if (count > 0)
+                    for (String arg : info.arguments().get())
+                        ctx.getSource().sendMessage(Text.literal(arg));
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.pid", "PID: %s", process.pid()));
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static boolean isAlive(CommandContext<ServerCommandSource> ctx) {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null && process.isAlive()) {
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.isalive.alive", "Alive"));
+                return true;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.isalive.unlive", "Unlive"));
+        return false;
+    }
+
+    public static void flushOutput(CommandContext<ServerCommandSource> ctx) {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null && process.isAlive()) {
+                if (runner.outputGobbler != null) {
+                    runner.outputGobbler.flush();
+                }
+                if (runner.errorGobbler != null) {
+                    runner.errorGobbler.flush();
+                }
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static void inputChar(CommandContext<ServerCommandSource> ctx, char c) throws IOException {
+        if (runner != null) {
+            BufferedWriter bw = runner.getBw();
+            if (bw != null) {
+                bw.write(c);
+                bw.flush();
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static void inputString(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
+        if (runner != null) {
+            BufferedWriter bw = runner.getBw();
+            if (bw != null) {
+                bw.write(str);
+                bw.flush();
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static void inputLine(CommandContext<ServerCommandSource> ctx, String str) throws IOException {
+        if (runner != null) {
+            BufferedWriter bw = runner.getBw();
+            if (bw != null) {
+                bw.write(str);
+                bw.write(CONFIG.newLine);
+                bw.flush();
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static void inputNewLine(CommandContext<ServerCommandSource> ctx) throws IOException {
+        if (runner != null) {
+            BufferedWriter bw = runner.getBw();
+            if (bw != null) {
+                bw.write(CONFIG.newLine);
+                bw.flush();
+                return;
+            }
+        }
+        ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.no_running_process", "No running process!"));
+    }
+
+    public static ExecRunner getRunner() {
+        return runner;
+    }
+}
