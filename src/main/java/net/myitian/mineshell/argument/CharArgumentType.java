@@ -11,11 +11,15 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public class CharArgumentType implements ArgumentType<Character> {
-    private static final SimpleCommandExceptionType EMPTY_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.empty"));
-    private static final SimpleCommandExceptionType UNCLOSED_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.unclosed"));
-    private static final SimpleCommandExceptionType ILLEGAL_ESCAPE_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.illegal_escape"));
-    private static final SimpleCommandExceptionType TOO_MANY_CHAR_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("mineshell.argument.char.too_many"));
-    private static final Collection<String> EXAMPLES = Arrays.asList("'\\''", "'\"'", "\"a\"");
+    private static final SimpleCommandExceptionType EMPTY_CHAR_EXCEPTION = new SimpleCommandExceptionType(
+            Text.translatableWithFallback("mineshell.argument.char.empty", "Empty character literal"));
+    private static final SimpleCommandExceptionType UNCLOSED_CHAR_EXCEPTION = new SimpleCommandExceptionType(
+            Text.translatableWithFallback("mineshell.argument.char.unclosed", "Unclosed character literal"));
+    private static final SimpleCommandExceptionType ILLEGAL_ESCAPE_CHAR_EXCEPTION = new SimpleCommandExceptionType(
+            Text.translatableWithFallback("mineshell.argument.char.illegal_escape", "Illegal escape character in character literal"));
+    private static final SimpleCommandExceptionType TOO_MANY_CHAR_EXCEPTION = new SimpleCommandExceptionType(
+            Text.translatableWithFallback("mineshell.argument.char.too_many", "Too many characters in character literal"));
+    private static final Collection<String> EXAMPLES = Arrays.asList("'\\''", "'\"'", "'A'", "'\\u001B'");
 
     public static CharArgumentType character() {
         return new CharArgumentType();

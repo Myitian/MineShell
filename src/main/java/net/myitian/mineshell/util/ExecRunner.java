@@ -3,9 +3,10 @@ package net.myitian.mineshell.util;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
+import net.minecraft.util.Pair;
+import net.myitian.mineshell.MineShellMod;
 import net.myitian.mineshell.config.Config;
 
-import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
@@ -38,9 +39,11 @@ public class ExecRunner extends Thread {
                     new StreamGobbler(process.getErrorStream(), ctx, config.outputCharset, config))).start();
 
             int exitCode = process.waitFor();
-            ctx.getSource().sendMessage(Text.translatable("mineshell.exec.exitcode", exitCode));
-        } catch (Throwable t) {
-            t.printStackTrace();
+            ctx.getSource().sendMessage(Text.translatable("mineshell.exec.exit_code", exitCode));
+        } catch (Exception e) {
+            ctx.getSource().sendError(Text.literal(
+                    e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+            MineShellMod.LOGGER.error(e.getMessage());
         }
     }
 
@@ -52,13 +55,13 @@ public class ExecRunner extends Thread {
         return writer;
     }
 
-    public Text[] getUnsentMessages() {
-        Text[] outputs = new Text[2];
-        if (errorGobbler != null) {
-            outputs[0] = errorGobbler.getUnsentMessage();
-        }
+    public Pair<Text,Text> getUnsentMessages() {
+        Pair<Text,Text> outputs=new Pair<>(null,null);
         if (outputGobbler != null) {
-            outputs[1] = outputGobbler.getUnsentMessage();
+            outputs.setLeft(outputGobbler.getUnsentMessage());
+        }
+        if (errorGobbler != null) {
+            outputs.setRight(errorGobbler.getUnsentMessage());
         }
         return outputs;
     }

@@ -13,14 +13,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-public class ExtendBoolArgumentType implements ArgumentType<Boolean> {
-    private static final SimpleCommandExceptionType UNKNOWN_VALUE_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("argument.bool.unknown"));
+public class ExtendBooleanArgumentType implements ArgumentType<Boolean> {
+    private static final SimpleCommandExceptionType UNKNOWN_VALUE_EXCEPTION = new SimpleCommandExceptionType(
+            Text.translatableWithFallback("mineshell.argument.bool.unknown", "Unknown boolean value"));
     public final String falseValue, trueValue;
     public final boolean ignoreCase;
     final String lFalseValue, lTrueValue;
     private final Collection<String> EXAMPLES;
 
-    ExtendBoolArgumentType(String falseValue, String trueValue, boolean ignoreCase) {
+    ExtendBooleanArgumentType(String falseValue, String trueValue, boolean ignoreCase) {
         this.falseValue = falseValue;
         this.trueValue = trueValue;
         this.ignoreCase = ignoreCase;
@@ -29,16 +30,16 @@ public class ExtendBoolArgumentType implements ArgumentType<Boolean> {
         lTrueValue = trueValue.toLowerCase();
     }
 
-    public static ExtendBoolArgumentType exBool() {
+    public static ExtendBooleanArgumentType exBool() {
         return exBool("false", "true");
     }
 
-    public static ExtendBoolArgumentType exBool(String falseValue, String trueValue) {
+    public static ExtendBooleanArgumentType exBool(String falseValue, String trueValue) {
         return exBool(falseValue, trueValue, true);
     }
 
-    public static ExtendBoolArgumentType exBool(String falseValue, String trueValue, boolean ignoreCase) {
-        return new ExtendBoolArgumentType(falseValue, trueValue, ignoreCase);
+    public static ExtendBooleanArgumentType exBool(String falseValue, String trueValue, boolean ignoreCase) {
+        return new ExtendBooleanArgumentType(falseValue, trueValue, ignoreCase);
     }
 
     public static <S> boolean getBoolean(CommandContext<S> context, String name) {
@@ -47,25 +48,35 @@ public class ExtendBoolArgumentType implements ArgumentType<Boolean> {
 
     @Override
     public Boolean parse(StringReader reader) throws CommandSyntaxException {
-        String s = reader.readUnquotedString();
-        if (s.equals(falseValue))
-            return false;
-        if (s.equals(trueValue))
-            return true;
+        if (ignoreCase) {
+            String s = reader.readUnquotedString().toLowerCase();
+            if (s.equals(lFalseValue))
+                return false;
+            if (s.equals(lTrueValue))
+                return true;
+        } else {
+            String s = reader.readUnquotedString();
+            if (s.equals(falseValue))
+                return false;
+            if (s.equals(trueValue))
+                return true;
+        }
         throw UNKNOWN_VALUE_EXCEPTION.createWithContext(reader);
     }
 
     @Override
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
         if (ignoreCase) {
-            if (lFalseValue.startsWith(builder.getRemainingLowerCase()))
+            String s = builder.getRemainingLowerCase();
+            if (lFalseValue.startsWith(s))
                 builder.suggest(falseValue);
-            if (lTrueValue.startsWith(builder.getRemainingLowerCase()))
+            if (lTrueValue.startsWith(s))
                 builder.suggest(trueValue);
         } else {
-            if (falseValue.startsWith(builder.getRemaining()))
+            String s = builder.getRemaining();
+            if (falseValue.startsWith(s))
                 builder.suggest(falseValue);
-            if (trueValue.startsWith(builder.getRemaining()))
+            if (trueValue.startsWith(s))
                 builder.suggest(trueValue);
         }
         return builder.buildFuture();

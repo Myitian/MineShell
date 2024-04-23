@@ -1,34 +1,42 @@
 package net.myitian.mineshell;
 
+import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.myitian.mineshell.argument.CharArgumentType;
-import net.myitian.mineshell.argument.ExtendBoolArgumentSerializer;
-import net.myitian.mineshell.argument.ExtendBoolArgumentType;
+import net.myitian.mineshell.argument.*;
+import net.myitian.mineshell.config.Config;
 import net.myitian.mineshell.util.ProcessManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.function.BiFunction;
 
 import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
-import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
-import static com.mojang.brigadier.arguments.StringArgumentType.word;
+import static com.mojang.brigadier.arguments.StringArgumentType.string;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
-import static net.myitian.mineshell.argument.ExtendBoolArgumentType.exBool;
-import static net.myitian.mineshell.argument.ExtendBoolArgumentType.getBoolean;
+import static net.myitian.mineshell.argument.ExtendBooleanArgumentType.exBool;
+import static net.myitian.mineshell.argument.NullableBooleanArgumentType.bool3;
 
-public class MineShellMod implements ModInitializer {
+public class MineShellMod implements ModInitializer, ServerWorldEvents.Load, ServerWorldEvents.Unload {
     public static final String MODID = "mineshell";
     public static final String CMD = "shell";
     public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
@@ -37,37 +45,45 @@ public class MineShellMod implements ModInitializer {
     public static final boolean IS_WINDOWS = System.getProperty("os.name").toLowerCase().startsWith("windows");
     public static final String CMDPREFIX = IS_WINDOWS ? CMDPREFIX_WINDOWS : CMDPREFIX_NONWINDOWS;
 
+    static final Text NEWLINE = Text.literal("\n");
+
     @Override
     public void onInitialize() {
         ArgumentTypeRegistry.registerArgumentType(new Identifier("mineshell:char"),
                 CharArgumentType.class, ConstantArgumentSerializer.of(CharArgumentType::character));
         ArgumentTypeRegistry.registerArgumentType(new Identifier("mineshell:bool"),
-                ExtendBoolArgumentType.class, new ExtendBoolArgumentSerializer());
+                ExtendBooleanArgumentType.class, new ExtendBooleanArgumentSerializer());
+        ArgumentTypeRegistry.registerArgumentType(new Identifier("mineshell:bool3"),
+                NullableBooleanArgumentType.class, new NullableBooleanArgumentSerializer());
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(literal(CMD)
                 .requires((source) -> source.hasPermissionLevel(4))
                 .then(literal("runcmd")
                         .then(argument("cmd", StringArgumentType.greedyString())
                                 .executes(ctx -> {
                                     try {
-                                        String cmd = StringArgumentType.getString(ctx, "cmd");
+                                        String cmd = getString(ctx, "cmd");
                                         ProcessManager.execAsync(ctx, CMDPREFIX + cmd);
-                                    } catch (Throwable e) {
-                                        e.printStackTrace();
-                                        ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                        return SINGLE_SUCCESS;
+                                    } catch (Exception e) {
+                                        ctx.getSource().sendError(Text.literal(
+                                                e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                        MineShellMod.LOGGER.error(e.getMessage());
+                                        return 0;
                                     }
-                                    return 1;
                                 })))
                 .then(literal("run")
                         .then(argument("cmd", StringArgumentType.greedyString())
                                 .executes(ctx -> {
                                     try {
-                                        String cmd = StringArgumentType.getString(ctx, "cmd");
+                                        String cmd = getString(ctx, "cmd");
                                         ProcessManager.execAsync(ctx, cmd);
-                                    } catch (Throwable e) {
-                                        e.printStackTrace();
-                                        ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                        return SINGLE_SUCCESS;
+                                    } catch (Exception e) {
+                                        ctx.getSource().sendError(Text.literal(
+                                                e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                        MineShellMod.LOGGER.error(e.getMessage());
+                                        return 0;
                                     }
-                                    return SINGLE_SUCCESS;
                                 })))
                 .then(literal("kill").executes(ctx -> {
                     ProcessManager.kill(ctx);
@@ -83,25 +99,40 @@ public class MineShellMod implements ModInitializer {
                 }))
                 .then(literal("help").executes(ctx -> {
                     // WIP
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.title", "===== MineShell Help [WIP] ====="));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.1", " 1. run"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.2", " 2. runcmd"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.3", " 3. kill"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.4", " 4. info"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.5", " 5. flushout"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.6", " 6. isalive"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.7", " 7. input"));
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.help.main.line.8", " 8. config"));
-                    ctx.getSource().sendMessage(
-                            Text.translatableWithFallback(
-                                            "mineshell.help.main.extra",
-                                            "See https://github.com/Myitian/MineShell for more information.")
-                                    .setStyle(Style.EMPTY
+                    String[] lines = {
+                            "run",
+                            "runcmd",
+                            "kill",
+                            "info",
+                            "flushout",
+                            "isalive",
+                            "input",
+                            "config"
+                    };
+                    MutableText text = Text.empty().append(Text.translatableWithFallback(
+                            "mineshell.help.main.title",
+                            "===== MineShell Help [WIP] ====="));
+                    for (int i = 0; i < lines.length; i++)
+                        text.append("\n " + i + ". " + lines[i]);
+                    text.append(NEWLINE).append(Text.translatableWithFallback(
+                                    "mineshell.help.main.github",
+                                    "GitHub: %s",
+                                    Text.literal("https://github.com/Myitian/MineShell").setStyle(Style.EMPTY
                                             .withBold(true)
                                             .withUnderline(true)
                                             .withClickEvent(new ClickEvent(
                                                     ClickEvent.Action.OPEN_URL,
-                                                    "https://github.com/Myitian/MineShell"))));
+                                                    "https://github.com/Myitian/MineShell")))))
+                            .append(NEWLINE).append(Text.translatableWithFallback(
+                                    "mineshell.help.main.mcmod",
+                                    "MCMOD: %s",
+                                    Text.literal("https://www.mcmod.cn/class/8929.html").setStyle(Style.EMPTY
+                                            .withBold(true)
+                                            .withUnderline(true)
+                                            .withClickEvent(new ClickEvent(
+                                                    ClickEvent.Action.OPEN_URL,
+                                                    "https://www.mcmod.cn/class/8929.html")))));
+                    ctx.getSource().sendMessage(text);
                     return SINGLE_SUCCESS;
                 }))
                 .then(literal("isalive").executes(ctx -> {
@@ -114,76 +145,163 @@ public class MineShellMod implements ModInitializer {
                                         .executes(ctx -> {
                                             try {
                                                 ProcessManager.inputChar(ctx, CharArgumentType.getChar(ctx, "char"));
-                                            } catch (IOException e) {
-                                                e.printStackTrace();
-                                                ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                                return SINGLE_SUCCESS;
+                                            } catch (Exception e) {
+                                                ctx.getSource().sendError(Text.literal(
+                                                        e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                                MineShellMod.LOGGER.error(e.getMessage());
+                                                return 0;
                                             }
-                                            return SINGLE_SUCCESS;
                                         })))
                         .then(literal("string")
                                 .then(argument("string", StringArgumentType.greedyString())
                                         .executes(ctx -> {
                                             try {
-                                                ProcessManager.inputString(ctx, StringArgumentType.getString(ctx, "string"));
-                                            } catch (IOException e) {
-                                                e.printStackTrace();
-                                                ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                                ProcessManager.inputString(ctx, getString(ctx, "string"));
+                                                return SINGLE_SUCCESS;
+                                            } catch (Exception e) {
+                                                ctx.getSource().sendError(Text.literal(
+                                                        e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                                MineShellMod.LOGGER.error(e.getMessage());
+                                                return 0;
                                             }
-                                            return SINGLE_SUCCESS;
                                         })))
                         .then(literal("line")
                                 .then(argument("line", StringArgumentType.greedyString())
                                         .executes(ctx -> {
                                             try {
-                                                ProcessManager.inputLine(ctx, StringArgumentType.getString(ctx, "line"));
-                                            } catch (IOException e) {
-                                                e.printStackTrace();
-                                                ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                                ProcessManager.inputLine(ctx, getString(ctx, "line"));
+                                                return SINGLE_SUCCESS;
+                                            } catch (Exception e) {
+                                                ctx.getSource().sendError(Text.literal(
+                                                        e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                                MineShellMod.LOGGER.error(e.getMessage());
+                                                return 0;
                                             }
-                                            return SINGLE_SUCCESS;
                                         })))
                         .then(literal("newline")
                                 .executes(ctx -> {
                                     try {
                                         ProcessManager.inputNewLine(ctx);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                        ctx.getSource().sendError(Text.literal(e.getMessage()));
+                                        return SINGLE_SUCCESS;
+                                    } catch (Exception e) {
+                                        ctx.getSource().sendError(Text.literal(
+                                                e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                        MineShellMod.LOGGER.error(e.getMessage());
+                                        return 0;
                                     }
-                                    return SINGLE_SUCCESS;
                                 })))
                 .then(literal("config")
                         .then(literal("reload").executes(ctx -> {
+                            ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.config.reload", "[MSH] Reloading!"));
                             ProcessManager.CONFIG.load();
                             return SINGLE_SUCCESS;
                         }))
                         .then(literal("save").executes(ctx -> {
                             ProcessManager.CONFIG.save();
+                            ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.config.save", "[MSH] Saved!"));
                             return SINGLE_SUCCESS;
                         }))
-                        .then(literal("tab-width")
-                                .then(argument("value", integer(0))
-                                        .executes(ctx -> {
-                                            ProcessManager.CONFIG.tabWidth = getInteger(ctx, "value");
-                                            return SINGLE_SUCCESS;
-                                        })))
-                        .then(literal("input-charset")
-                                .then(argument("value", word())
-                                        .executes(ctx -> {
-                                            ProcessManager.CONFIG.inputCharset = getString(ctx, "value");
-                                            return SINGLE_SUCCESS;
-                                        })))
-                        .then(literal("output-charset")
-                                .then(argument("value", word())
-                                        .executes(ctx -> {
-                                            ProcessManager.CONFIG.outputCharset = getString(ctx, "value");
-                                            return SINGLE_SUCCESS;
-                                        })))
-                        .then(literal("ansi-escape")
-                                .then(argument("isEnabled", exBool("disable", "enable"))
-                                        .executes(ctx -> {
-                                            ProcessManager.CONFIG.isANSIEscapeEnabled = getBoolean(ctx, "isEnabled");
-                                            return SINGLE_SUCCESS;
-                                        }))))));
+                        .then(config(
+                                "TabWidth",
+                                "tabWidth",
+                                "value",
+                                integer(0),
+                                IntegerArgumentType::getInteger))
+                        .then(config(
+                                "InputCharset",
+                                "inputCharset",
+                                "value",
+                                string(),
+                                StringArgumentType::getString))
+                        .then(config(
+                                "OutputCharset",
+                                "outputCharset",
+                                "value",
+                                string(),
+                                StringArgumentType::getString))
+                        .then(config(
+                                "CarriageReturn",
+                                "isCREnabled",
+                                "isEnabled",
+                                bool3("disable", "enable", "ignored"),
+                                NullableBooleanArgumentType::getBoolean))
+                        .then(config(
+                                "ANSIEscape",
+                                "isANSIEscapeEnabled",
+                                "isEnabled",
+                                exBool("disable", "enable"),
+                                ExtendBooleanArgumentType::getBoolean))
+                        .then(config(
+                                "UnicodeC1",
+                                "isUnicodeC1Enabled",
+                                "isEnabled",
+                                exBool("disable", "enable"),
+                                ExtendBooleanArgumentType::getBoolean))
+                        .then(config(
+                                "EmptyNewLine",
+                                "isEmptyNewLineEnabled",
+                                "isEnabled",
+                                exBool("disable", "enable"),
+                                ExtendBooleanArgumentType::getBoolean)))));
+    }
+
+    public <T> LiteralArgumentBuilder<ServerCommandSource> config(
+            String name,
+            String fieldName,
+            String argName,
+            ArgumentType<?> arg,
+            BiFunction<CommandContext<ServerCommandSource>, String, T> getValue) {
+        Field field;
+        try {
+            field = Config.class.getField(fieldName);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+        return literal(name)
+                .then(argument(argName, arg)
+                        .executes(ctx -> {
+                            try {
+                                T value = getValue.apply(ctx, argName);
+                                field.set(ProcessManager.CONFIG, value);
+                                ctx.getSource().sendMessage(Text.translatableWithFallback(
+                                        "mineshell.config.set",
+                                        "Set the value of %s to %s",
+                                        fieldName,
+                                        value));
+                                return SINGLE_SUCCESS;
+                            } catch (Exception e) {
+                                ctx.getSource().sendError(Text.literal(
+                                        e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                                MineShellMod.LOGGER.error(e.getMessage());
+                                return 0;
+                            }
+                        }))
+                .executes(ctx -> {
+                    try {
+                        ctx.getSource().sendMessage(Text.translatableWithFallback(
+                                "mineshell.config.get",
+                                "The value of %s is %s",
+                                fieldName,
+                                field.get(ProcessManager.CONFIG)));
+                        return SINGLE_SUCCESS;
+                    } catch (Exception e) {
+                        ctx.getSource().sendError(Text.literal(
+                                e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+                        MineShellMod.LOGGER.error(e.getMessage());
+                        return 0;
+                    }
+                });
+    }
+
+    @Override
+    public void onWorldLoad(MinecraftServer server, ServerWorld world) {
+        ProcessManager.CONFIG.load().save();
+    }
+
+    @Override
+    public void onWorldUnload(MinecraftServer server, ServerWorld world) {
+        ProcessManager.CONFIG.save();
+        ProcessManager.kill();
     }
 }

@@ -5,26 +5,32 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.myitian.mineshell.config.Config;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
 
 public class ProcessManager {
-    public static final Config CONFIG = new Config().load().save();
+    public static final Config CONFIG = new Config();
     private static ExecRunner runner;
 
     public static void execAsync(CommandContext<ServerCommandSource> ctx, String arg) {
         if (runner != null) {
             Process process = runner.getProcess();
-            if (process != null) {
-                if (process.isAlive()) {
-                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.process_already_running", "There is already a process running!"));
-                    return;
-                }
+            if (process != null && process.isAlive()) {
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.process_manager.error.process_already_running", "There is already a process running!"));
+                return;
             }
         }
         runner = new ExecRunner(ctx, arg, CONFIG);
         runner.start();
+    }
+
+    public static void kill() {
+        if (runner != null) {
+            Process process = runner.getProcess();
+            if (process != null && process.isAlive()) {
+                kill(process.toHandle());
+            }
+        }
     }
 
     public static void kill(CommandContext<ServerCommandSource> ctx) {
@@ -32,7 +38,7 @@ public class ProcessManager {
             Process process = runner.getProcess();
             if (process != null && process.isAlive()) {
                 kill(process.toHandle());
-                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.kill_process", "[MSH:Ending the process]"));
+                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.kill", "[MSH:Ending the process]"));
                 return;
             }
         }
@@ -50,11 +56,14 @@ public class ProcessManager {
             if (process != null && process.isAlive()) {
                 ProcessHandle.Info info = process.info();
                 ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.command", "Command: %s", info.command().orElse("")));
-                int count = info.arguments().map(strings -> strings.length).orElse(0);
-                ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.arguments", "Arguments (%s):", count));
-                if (count > 0)
-                    for (String arg : info.arguments().get())
+                if (info.arguments().isEmpty() || info.arguments().get().length == 0)
+                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.no_arguments", "No arguments"));
+                else {
+                    var args = info.arguments().get();
+                    ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.arguments", "Arguments (%s):", args.length));
+                    for (String arg : args)
                         ctx.getSource().sendMessage(Text.literal(arg));
+                }
                 ctx.getSource().sendMessage(Text.translatableWithFallback("mineshell.info.pid", "PID: %s", process.pid()));
                 return;
             }

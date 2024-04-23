@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screen.ChatInputSuggestor;
 import net.minecraft.command.CommandSource;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Pair;
 import net.myitian.mineshell.MineShellMod;
 import net.myitian.mineshell.util.ProcessManager;
 import org.spongepowered.asm.mixin.Final;
@@ -35,13 +36,11 @@ public class ChatInputSuggestorMixin {
             String n0 = nodes.get(0).getNode().getName();
             String n1 = nodes.get(1).getNode().getName();
             if (MineShellMod.CMD.equals(n0) && ("input".equals(n1))) {
-                try {
-                    Text[] unsentMessages = ProcessManager.getRunner().getUnsentMessages();
-                    for (var msg : unsentMessages)
-                        if (msg != null)
-                            messages.add(msg.asOrderedText());
-                } catch (Exception ignored) {
-                }
+                Pair<Text, Text> unsentMessages = ProcessManager.getRunner().getUnsentMessages();
+                if (unsentMessages.getLeft() != null)
+                    messages.add(unsentMessages.getLeft().asOrderedText());
+                if (unsentMessages.getRight() != null)
+                    messages.add(unsentMessages.getRight().asOrderedText());
             }
 
         }

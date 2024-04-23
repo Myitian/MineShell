@@ -7,6 +7,9 @@ The standard output and standard error of the process opened by the command will
 
 The `/shell` command needs permission level 4.
 
+### WARNING!
+Do **NOT** install this mod on a server with untrusted OPs, as it may cause **serious security risks** to the server system!
+
 ## Compatibility
 Minecraft 1.20 +
 
@@ -50,14 +53,16 @@ Config operations.
 Reload config from file.
 #### /shell config save
 Save config to file.
-#### /shell config tab-width \<value\>
+#### /shell config TabWidth \<value\>
 Set tab width.
-#### /shell config input-charset \<value\>
+#### /shell config InputCharset \<value\>
 Set input charset, for example, `UTF-8`.
-#### /shell config output-charset \<value\>
+#### /shell config OutputCharset \<value\>
 Set output charset, for example, `UTF-8`.
-#### /shell config ansi-escape \<isEnabled\>
+#### /shell config ANSIEscape \<isEnabled\>
 Enable/disable ANSI escape codes.
+#### /shell config CarriageReturn \<isEnabled\>
+Enable/disable/ignore carriage return (CR,'\r',0x0A) processing.
 
 ### /shell help
 Show help. (WIP)

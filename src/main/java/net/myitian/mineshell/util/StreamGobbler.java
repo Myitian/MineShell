@@ -8,7 +8,9 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.myitian.mineshell.MineShellMod;
 import net.myitian.mineshell.config.Config;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,8 +31,8 @@ class StreamGobbler implements Runnable {
     public static final char CCH = '\u0094';
     public static final char CSI = '\u009B';
     public static final Identifier FONT_DEFAULT = new Identifier("minecraft:default");
-    public static final Identifier FONT_ALT = new Identifier("minecraft:alt");
     public static final Identifier FONT_UNIFORM = new Identifier("minecraft:uniform");
+    public static final Identifier FONT_ALT = new Identifier("minecraft:alt");
     public static final Identifier FONT_ILLAGERALT = new Identifier("minecraft:illageralt");
     private static final int[] colorTable256 = {
             0x000000, 0x800000, 0x008000, 0x808000, 0x000080, 0x800080, 0x008080, 0xc0c0c0, 0x808080, 0xff0000, 0x00ff00, 0xffff00, 0x0000ff, 0xff00ff, 0x00ffff, 0xffffff,
@@ -57,7 +59,9 @@ class StreamGobbler implements Runnable {
     private Style style = Style.EMPTY;
     private StringBuilder text;
     private MutableText mcText;
-    private int linePos = 0;
+    private int linePos = 0, prev = -2, c = 0;
+    private EscapeType escape = EscapeType.NONE;
+    private boolean escaped;
 
     StreamGobbler(InputStream is, CommandContext<ServerCommandSource> ctx, String charset, Config config) {
         this.is = is;
@@ -89,16 +93,274 @@ class StreamGobbler implements Runnable {
         linePos = 0;
     }
 
+    private void processSGR(int parameterLength, StringBuilder escapeSeq) {
+        mcText.append(Text.literal(text.toString()).setStyle(style));
+        text.setLength(0);
+        SGRParserState state = SGRParserState.BASIC;
+        int r = 0, g = 0, b;
+        for (int i = 0; i < parameterLength; i++) {
+            var parseResult = parseIntWithReturnLength(escapeSeq, i, parameterLength);
+            if (parseResult.getRight() == null)
+                if (escapeSeq.charAt(i) == ';')
+                    parseResult.setRight(0);
+                else
+                    break;
+            i = parseResult.getLeft();
+            int number = parseResult.getRight();
+            switch (state) {
+                case BASIC -> {
+                    switch (number) {
+                        case 0 -> // Reset
+                                style = Style.EMPTY;
+                        case 1 -> // Bold
+                                style = style.withBold(true);
+                        case 3 -> // Italic
+                                style = style.withItalic(true);
+                        case 4 -> // Underline
+                                style = style.withUnderline(true);
+                        case 9 -> // Strikethrough
+                                style = style.withStrikethrough(true);
+                        case 10 -> // Primary font
+                                style = style.withFont(FONT_DEFAULT);
+                        case 11 -> // Alternative font 1
+                                style = style.withFont(FONT_UNIFORM);
+                        case 12 -> // Alternative font 2
+                                style = style.withFont(FONT_ALT);
+                        case 13 -> // Alternative font 3
+                                style = style.withFont(FONT_ILLAGERALT);
+                        case 22 -> // Not bold
+                                style = style.withBold(false);
+                        case 23 -> // Not italic
+                                style = style.withItalic(false);
+                        case 24 -> // Not underlined
+                                style = style.withUnderline(false);
+                        case 29 -> // Not strikethrough
+                                style = style.withStrikethrough(false);
+                        case 30 -> // Set foreground color 0
+                                style = style.withColor(Formatting.BLACK);
+                        case 31 -> // Set foreground color 1
+                                style = style.withColor(Formatting.DARK_RED);
+                        case 32 -> // Set foreground color 2
+                                style = style.withColor(Formatting.DARK_GREEN);
+                        case 33 -> // Set foreground color 3
+                                style = style.withColor(Formatting.GOLD);
+                        case 34 -> // Set foreground color 4
+                                style = style.withColor(Formatting.DARK_BLUE);
+                        case 35 -> // Set foreground color 5
+                                style = style.withColor(Formatting.DARK_PURPLE);
+                        case 36 -> // Set foreground color 6
+                                style = style.withColor(Formatting.DARK_AQUA);
+                        case 37 -> // Set foreground color 7
+                                style = style.withColor(Formatting.GRAY);
+                        case 38 -> // Set foreground color
+                                state = SGRParserState.COLOR;
+                        case 39 -> // Default foreground color
+                                style = style.withColor((TextColor) null);
+                        case 90 -> // Set bright foreground color 0
+                                style = style.withColor(Formatting.DARK_GRAY);
+                        case 91 -> // Set bright foreground color 1
+                                style = style.withColor(Formatting.RED);
+                        case 92 -> // Set bright foreground color 2
+                                style = style.withColor(Formatting.GREEN);
+                        case 93 -> // Set bright foreground color 3
+                                style = style.withColor(Formatting.YELLOW);
+                        case 94 -> // Set bright foreground color 4
+                                style = style.withColor(Formatting.BLUE);
+                        case 95 -> // Set bright foreground color 5
+                                style = style.withColor(Formatting.LIGHT_PURPLE);
+                        case 96 -> // Set bright foreground color 6
+                                style = style.withColor(Formatting.AQUA);
+                        case 97 -> // Set bright foreground color 7
+                                style = style.withColor(Formatting.WHITE);
+                    }
+                }
+                case COLOR -> state = switch (number) {
+                    case 2 -> SGRParserState.COLOR_24BIT_R;
+                    case 5 -> SGRParserState.COLOR_8BIT;
+                    default -> SGRParserState.BASIC;
+                };
+                case COLOR_8BIT -> {
+                    int color8 = get8bitColor(number);
+                    if (color8 != -1)
+                        style = style.withColor(color8);
+                    state = SGRParserState.BASIC;
+                }
+                case COLOR_24BIT_R -> {
+                    state = SGRParserState.COLOR_24BIT_G;
+                    r = number < 0 || number > 255 ? -1 : number;
+                }
+                case COLOR_24BIT_G -> {
+                    state = SGRParserState.COLOR_24BIT_B;
+                    g = number < 0 || number > 255 ? -1 : number;
+                }
+                case COLOR_24BIT_B -> {
+                    state = SGRParserState.BASIC;
+                    b = number < 0 || number > 255 ? -1 : number;
+                    if (r != -1 && g != -1 && b != -1) {
+                        int color24 = (r << 16) | (g << 8) | b;
+                        style = style.withColor(color24);
+                    }
+                }
+            }
+        }
+    }
+
+    private BreakType processEscape(StringBuilder escapeSeq, BufferedReader br) throws IOException {
+        switch (escape) {
+            case CRLF -> {
+                escape = EscapeType.NONE;
+                if (c == LF)
+                    return BreakType.READ_LINE;
+                else if (!Boolean.FALSE.equals(config.isCREnabled)) {
+                    if (Boolean.TRUE.equals(config.isCREnabled)) {
+                        prev = c;
+                        return BreakType.READ_LINE;
+                    }
+                } else {
+                    text.append(CR);
+                    linePos++;
+                }
+            }
+            case ESC -> {
+                escape = EscapeType.NONE;
+                if (c < '@' || c > '_') {
+                    if (config.hideUnsupportedANSIEscapeSequence)
+                        return BreakType.CONTINUE;
+                    else {
+                        text.append(ESC);
+                        linePos++;
+                    }
+                } else {
+                    c += 64;
+                    escaped = true;
+                }
+            }
+            case CSI -> {
+                escape = EscapeType.NONE;
+                int parameterLength = 0;
+                escapeSeq.setLength(0);
+                while (c >= 0x30 && c <= 0x3F) {
+                    escapeSeq.append((char) c);
+                    parameterLength++;
+                    c = br.read();
+                }
+                while (c >= 0x20 && c <= 0x2F) {
+                    escapeSeq.append((char) c);
+                    c = br.read();
+                }
+                CSIMode csi = CSIMode.createCSIMode((char) c);
+                switch (csi) {
+                    case CNL -> {
+                        if (config.isCSICNLEnabled == null)
+                            return BreakType.NORMAL;
+                        if (Boolean.TRUE.equals(config.isCSICNLEnabled))
+                            return BreakType.READ_LINE;
+                    }
+                    case SGR -> {
+                        if (config.isCSISGREnabled == null)
+                            return BreakType.NORMAL;
+                        if (Boolean.TRUE.equals(config.isCSISGREnabled)) {
+                            processSGR(parameterLength, escapeSeq);
+                            return BreakType.CONTINUE;
+                        }
+                    }
+                }
+                if (!config.hideUnsupportedANSIEscapeSequence)
+                    text.append(escapeSeq);
+            }
+        }
+        return BreakType.NORMAL;
+    }
+
+    private BreakType processChar(boolean canEscape) {
+        switch (c) {
+            case -1 -> {
+                return BreakType.READ_LINE;
+            }
+            case CR -> {
+                if (config.isCRLFEnabled) {
+                    escape = EscapeType.CRLF;
+                    return BreakType.CONTINUE;
+                } else if (!Boolean.FALSE.equals(config.isCREnabled)) {
+                    if (Boolean.TRUE.equals(config.isCREnabled))
+                        return BreakType.READ_LINE;
+                    return BreakType.CONTINUE;
+                }
+            }
+            case LF -> {
+                if (!Boolean.FALSE.equals(config.isLFEnabled)) {
+                    if (Boolean.TRUE.equals(config.isLFEnabled))
+                        return BreakType.READ_LINE;
+                    return BreakType.CONTINUE;
+                }
+            }
+            case Backspace -> {
+                if (!Boolean.FALSE.equals(config.isBackspaceEnabled)) {
+                    if (Boolean.TRUE.equals(config.isBackspaceEnabled) && !text.isEmpty())
+                        text.setLength(text.length() - 1);
+                    return BreakType.CONTINUE;
+                }
+            }
+            case Tab -> {
+                if (!Boolean.FALSE.equals(config.isTabEnabled)) {
+                    if (Boolean.TRUE.equals(config.isTabEnabled))
+                        linePos += appendTab(text, linePos, config);
+                    return BreakType.CONTINUE;
+                }
+            }
+            case ESC -> {
+                if (config.isANSIEscapeEnabled) {
+                    escape = EscapeType.ESC;
+                    return BreakType.CONTINUE;
+                }
+            }
+            case IND -> {
+                if (canEscape && !Boolean.FALSE.equals(config.isINDEnabled)) {
+                    if (Boolean.TRUE.equals(config.isINDEnabled))
+                        return BreakType.READ_LINE;
+                    return BreakType.CONTINUE;
+                }
+            }
+            case NEL -> {
+                if (canEscape && !Boolean.FALSE.equals(config.isNELEnabled)) {
+                    if (Boolean.TRUE.equals(config.isNELEnabled))
+                        return BreakType.READ_LINE;
+                    return BreakType.CONTINUE;
+                }
+            }
+            case HTS -> {
+                if (canEscape && !Boolean.FALSE.equals(config.isHTSEnabled)) {
+                    if (Boolean.TRUE.equals(config.isHTSEnabled))
+                        linePos += appendTab(text, linePos, config);
+                    return BreakType.CONTINUE;
+                }
+            }
+            case CCH -> {
+                if (canEscape && !Boolean.FALSE.equals(config.isCCHEnabled)) {
+                    if (Boolean.TRUE.equals(config.isCCHEnabled) && !text.isEmpty()) {
+                        text.setLength(text.length() - 1);
+                        linePos--;
+                    }
+                    return BreakType.CONTINUE;
+                }
+            }
+            case CSI -> {
+                if (canEscape && !Boolean.FALSE.equals(config.isCSIEnabled)) {
+                    if (Boolean.TRUE.equals(config.isCSIEnabled))
+                        escape = EscapeType.CSI;
+                    return BreakType.CONTINUE;
+                }
+            }
+        }
+        return BreakType.NORMAL;
+    }
+
     public void run() {
         try {
             InputStreamReader isr = new InputStreamReader(is, charset);
             BufferedReader br = new BufferedReader(isr);
-
             StringBuilder escapeSeq = new StringBuilder();
             text = new StringBuilder();
-            EscapeType escape = EscapeType.NONE;
-            boolean escaped;
-            int prev = -2, c = 0;
             do {
                 linePos = 0;
                 mcText = Text.empty();
@@ -110,234 +372,20 @@ class StreamGobbler implements Runnable {
                     else
                         prev = -2;
                     escaped = false;
-                    switch (escape) {
-                        case CRLF:
-                            if (c == LF) {
-                                escape = EscapeType.NONE;
-                                break READ_LINE;
-                            } else if (config.isCREnabled) {
-                                prev = c;
-                                break READ_LINE;
-                            } else {
-                                text.append(CR);
-                                linePos++;
-                            }
-                        case ESC:
-                            if (c < '@' || c > '_') {
-                                if (!config.hideUnsupportedANSIEscapeSequence) {
-                                    text.append(ESC);
-                                    linePos++;
-                                }
-                            } else {
-                                c += 64;
-                                escaped = true;
-                            }
-                            break;
-                        case CSI:
-                            int parameterLength = 0;
-                            escapeSeq.setLength(0);
-                            while (c >= 0x30 && c <= 0x3F) {
-                                escapeSeq.append((char) c);
-                                parameterLength++;
-                                c = br.read();
-                            }
-                            while (c >= 0x20 && c <= 0x2F) {
-                                escapeSeq.append((char) c);
-                                c = br.read();
-                            }
-                            CSIMode csi = CSIMode.createCSIMode((char) c);
-                            switch (csi) {
-                                case CNL:
-                                    if (!config.isCSICNLEnabled)
-                                        break;
-                                    escape = EscapeType.NONE;
-                                    break READ_LINE;
-                                case SGR:
-                                    if (!config.isCSISGREnabled)
-                                        break;
-                                    mcText.append(Text.literal(text.toString()).setStyle(style));
-                                    text.setLength(0);
-                                    SGRParserState state = SGRParserState.BASIC;
-                                    int r = 0, g = 0, b;
-                                    for (int i = 0; i < parameterLength; i++) {
-                                        var parseResult = parseIntWithReturnLength(escapeSeq, i, parameterLength);
-                                        if (parseResult.getRight() == null)
-                                            if (escapeSeq.charAt(i) == ';')
-                                                parseResult.setRight(0);
-                                            else
-                                                break;
-                                        i = parseResult.getLeft();
-                                        int number = parseResult.getRight();
-                                        switch (state) {
-                                            case BASIC -> {
-                                                switch (number) {
-                                                    case 0 -> // Reset
-                                                            style = Style.EMPTY;
-                                                    case 1 -> // Bold
-                                                            style = style.withBold(true);
-                                                    case 3 -> // Italic
-                                                            style = style.withItalic(true);
-                                                    case 4 -> // Underline
-                                                            style = style.withUnderline(true);
-                                                    case 9 -> // Strikethrough
-                                                            style = style.withStrikethrough(true);
-                                                    case 10 -> // Primary font
-                                                            style = style.withFont(FONT_DEFAULT);
-                                                    case 11 -> // Alternative font 1
-                                                            style = style.withFont(FONT_ALT);
-                                                    case 12 -> // Alternative font 2
-                                                            style = style.withFont(FONT_UNIFORM);
-                                                    case 13 -> // Alternative font 3
-                                                            style = style.withFont(FONT_ILLAGERALT);
-                                                    case 22 -> // Not bold
-                                                            style = style.withBold(false);
-                                                    case 23 -> // Not italic
-                                                            style = style.withItalic(false);
-                                                    case 24 -> // Not underlined
-                                                            style = style.withUnderline(false);
-                                                    case 29 -> // Not strikethrough
-                                                            style = style.withStrikethrough(false);
-                                                    case 30 -> // Set foreground color 0
-                                                            style = style.withColor(Formatting.BLACK);
-                                                    case 31 -> // Set foreground color 1
-                                                            style = style.withColor(Formatting.DARK_RED);
-                                                    case 32 -> // Set foreground color 2
-                                                            style = style.withColor(Formatting.DARK_GREEN);
-                                                    case 33 -> // Set foreground color 3
-                                                            style = style.withColor(Formatting.GOLD);
-                                                    case 34 -> // Set foreground color 4
-                                                            style = style.withColor(Formatting.DARK_BLUE);
-                                                    case 35 -> // Set foreground color 5
-                                                            style = style.withColor(Formatting.DARK_PURPLE);
-                                                    case 36 -> // Set foreground color 6
-                                                            style = style.withColor(Formatting.DARK_AQUA);
-                                                    case 37 -> // Set foreground color 7
-                                                            style = style.withColor(Formatting.GRAY);
-                                                    case 38 -> // Set foreground color
-                                                            state = SGRParserState.COLOR;
-                                                    case 39 -> // Default foreground color
-                                                            style = style.withColor((TextColor) null);
-                                                    case 90 -> // Set bright foreground color 0
-                                                            style = style.withColor(Formatting.DARK_GRAY);
-                                                    case 91 -> // Set bright foreground color 1
-                                                            style = style.withColor(Formatting.RED);
-                                                    case 92 -> // Set bright foreground color 2
-                                                            style = style.withColor(Formatting.GREEN);
-                                                    case 93 -> // Set bright foreground color 3
-                                                            style = style.withColor(Formatting.YELLOW);
-                                                    case 94 -> // Set bright foreground color 4
-                                                            style = style.withColor(Formatting.BLUE);
-                                                    case 95 -> // Set bright foreground color 5
-                                                            style = style.withColor(Formatting.LIGHT_PURPLE);
-                                                    case 96 -> // Set bright foreground color 6
-                                                            style = style.withColor(Formatting.AQUA);
-                                                    case 97 -> // Set bright foreground color 7
-                                                            style = style.withColor(Formatting.WHITE);
-                                                }
-                                            }
-                                            case COLOR -> state = switch (number) {
-                                                case 2 -> SGRParserState.COLOR_24BIT_R;
-                                                case 5 -> SGRParserState.COLOR_8BIT;
-                                                default -> SGRParserState.BASIC;
-                                            };
-                                            case COLOR_8BIT -> {
-                                                int color8 = get8bitColor(number);
-                                                if (color8 != -1)
-                                                    style = style.withColor(color8);
-                                                state = SGRParserState.BASIC;
-                                            }
-                                            case COLOR_24BIT_R -> {
-                                                state = SGRParserState.COLOR_24BIT_G;
-                                                r = number < 0 || number > 255 ? -1 : number;
-                                            }
-                                            case COLOR_24BIT_G -> {
-                                                state = SGRParserState.COLOR_24BIT_B;
-                                                g = number < 0 || number > 255 ? -1 : number;
-                                            }
-                                            case COLOR_24BIT_B -> {
-                                                state = SGRParserState.BASIC;
-                                                b = number < 0 || number > 255 ? -1 : number;
-                                                if (r != -1 && g != -1 && b != -1) {
-                                                    int color24 = (r << 16) | (g << 8) | b;
-                                                    style = style.withColor(color24);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    escape = EscapeType.NONE;
-                                    continue;
-                            }
-                            if (!config.hideUnsupportedANSIEscapeSequence)
-                                text.append(escapeSeq);
-                            break;
-                    }
-                    boolean canEscape = escaped || config.isUnicodeC1Enabled;
-                    switch (c) {
-                        case -1 -> {
+                    switch (processEscape(escapeSeq, br)) {
+                        case READ_LINE -> {
                             break READ_LINE;
                         }
-                        case CR -> {
-                            if (config.isCRLFEnabled) {
-                                escape = EscapeType.CRLF;
-                                continue;
-                            } else if (config.isCREnabled) {
-                                break READ_LINE;
-                            }
+                        case CONTINUE -> {
+                            continue;
                         }
-                        case LF -> {
-                            if (config.isLFEnabled) {
-                                break READ_LINE;
-                            }
+                    }
+                    switch (processChar(escaped || config.isUnicodeC1Enabled)) {
+                        case READ_LINE -> {
+                            break READ_LINE;
                         }
-                        case Backspace -> {
-                            if (canEscape && config.isBackspaceEnabled) {
-                                if (!text.isEmpty())
-                                    text.setLength(text.length() - 1);
-                                continue;
-                            }
-                        }
-                        case Tab -> {
-                            if (config.isTabEnabled) {
-                                linePos += appendTab(text, linePos, config);
-                                continue;
-                            }
-                        }
-                        case ESC -> {
-                            if (config.isANSIEscapeEnabled) {
-                                escape = EscapeType.ESC;
-                                continue;
-                            }
-                        }
-                        case IND -> {
-                            if (canEscape && config.isINDEnabled) {
-                                break READ_LINE;
-                            }
-                        }
-                        case NEL -> {
-                            if (canEscape && config.isNELEnabled) {
-                                break READ_LINE;
-                            }
-                        }
-                        case HTS -> {
-                            if (canEscape && config.isHTSEnabled) {
-                                linePos += appendTab(text, linePos, config);
-                                continue;
-                            }
-                        }
-                        case CCH -> {
-                            if (canEscape && config.isCCHEnabled) {
-                                if (!text.isEmpty()) {
-                                    text.setLength(text.length() - 1);
-                                    linePos--;
-                                }
-                                continue;
-                            }
-                        }
-                        case CSI -> {
-                            if (canEscape && config.isCSIEnabled) {
-                                escape = EscapeType.CSI;
-                                continue;
-                            }
+                        case CONTINUE -> {
+                            continue;
                         }
                     }
                     if (escaped && config.hideUnsupportedANSIEscapeSequence)
@@ -345,19 +393,27 @@ class StreamGobbler implements Runnable {
                     text.append((char) c);
                     linePos++;
                 }
-                if (c != -1 || linePos > 0)
+                if (linePos > 0 || (config.isEmptyNewLineEnabled && c != -1))
                     ctx.getSource().sendMessage(mcText.append(Text.literal(text.toString()).setStyle(style)));
             } while (c != -1);
             br.close();
             isr.close();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+        } catch (Exception e) {
+            ctx.getSource().sendError(Text.literal(
+                    e.getClass().getSimpleName() + ": " + e.getLocalizedMessage()));
+            MineShellMod.LOGGER.error(e.getMessage());
         }
     }
 
-    public Text getUnsentMessage() {
+    public @Nullable Text getUnsentMessage() {
         if (mcText == null || mcText.getString().length() + text.length() == 0)
             return null;
         return Text.empty().append(mcText).append(Text.literal(text.toString()).setStyle(style));
+    }
+
+    private enum BreakType {
+        NORMAL,
+        READ_LINE,
+        CONTINUE
     }
 }

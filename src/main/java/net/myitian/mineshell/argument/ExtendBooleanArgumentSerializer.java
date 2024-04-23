@@ -5,11 +5,14 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.argument.serialize.ArgumentSerializer;
 import net.minecraft.network.PacketByteBuf;
 
-public class ExtendBoolArgumentSerializer
-        implements ArgumentSerializer<ExtendBoolArgumentType, ExtendBoolArgumentSerializer.Properties> {
+public class ExtendBooleanArgumentSerializer
+        implements ArgumentSerializer<ExtendBooleanArgumentType, ExtendBooleanArgumentSerializer.Properties> {
     @Override
     public void writePacket(Properties prop, PacketByteBuf buf) {
-        buf.writeString(prop.falseValue).writeString(prop.trueValue).writeBoolean(prop.ignoreCase);
+        buf
+                .writeString(prop.falseValue)
+                .writeString(prop.trueValue)
+                .writeBoolean(prop.ignoreCase);
     }
 
     @Override
@@ -28,15 +31,15 @@ public class ExtendBoolArgumentSerializer
     }
 
     @Override
-    public Properties getArgumentTypeProperties(ExtendBoolArgumentType extendBoolArgumentType) {
+    public Properties getArgumentTypeProperties(ExtendBooleanArgumentType extendBooleanArgumentType) {
         return new Properties(
-                extendBoolArgumentType.falseValue,
-                extendBoolArgumentType.trueValue,
-                extendBoolArgumentType.ignoreCase);
+                extendBooleanArgumentType.falseValue,
+                extendBooleanArgumentType.trueValue,
+                extendBooleanArgumentType.ignoreCase);
     }
 
     public final class Properties
-            implements ArgumentSerializer.ArgumentTypeProperties<ExtendBoolArgumentType> {
+            implements ArgumentSerializer.ArgumentTypeProperties<ExtendBooleanArgumentType> {
         final String falseValue, trueValue;
         final boolean ignoreCase;
 
@@ -47,13 +50,13 @@ public class ExtendBoolArgumentSerializer
         }
 
         @Override
-        public ExtendBoolArgumentType createType(CommandRegistryAccess arg) {
-            return ExtendBoolArgumentType.exBool(falseValue, trueValue, ignoreCase);
+        public ExtendBooleanArgumentType createType(CommandRegistryAccess arg) {
+            return ExtendBooleanArgumentType.exBool(falseValue, trueValue, ignoreCase);
         }
 
         @Override
-        public ArgumentSerializer<ExtendBoolArgumentType, ?> getSerializer() {
-            return ExtendBoolArgumentSerializer.this;
+        public ArgumentSerializer<ExtendBooleanArgumentType, ?> getSerializer() {
+            return ExtendBooleanArgumentSerializer.this;
         }
     }
 }
